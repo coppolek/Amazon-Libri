@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // Validation Blueprint for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['updatedAt']) 
+        && data.keys().size() <= 4
+        && (!('fcmToken' in data) || (data.fcmToken is string && data.fcmToken.size() <= 2048))
+        && (!('followedAuthors' in data) || (data.followedAuthors is list && data.followedAuthors.size() <= 50))
+        && (!('followedCategories' in data) || (data.followedCategories is list && data.followedCategories.size() <= 20))
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for Notification
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'body', 'read', 'createdAt'])
+        && data.keys().size() <= 6
+        && data.userId is string && data.userId == request.auth.uid
+        && data.title is string && data.title.size() <= 256
+        && data.body is string && data.body.size() <= 1024
+        && (!('bookId' in data) || (data.bookId is string && data.bookId.size() <= 128))
+        && data.read is bool
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && userId == request.auth.uid;
+      allow list: if false; // No blanket reads
+
+      allow create: if isSignedIn() 
+                    && userId == request.auth.uid
+                    && isValidUserProfile(incoming()) 
+                    && incoming().updatedAt == request.time;
+      
+      allow update: if isSignedIn() 
+                    && userId == request.auth.uid
+                    && isValidUserProfile(incoming())
+                    && incoming().updatedAt == request.time
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['fcmToken', 'followedAuthors', 'followedCategories', 'updatedAt']);
+                    
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+                    && isValidId(notificationId)
+                    && isValidNotification(incoming())
+                    && incoming().createdAt == request.time;
+      
+      allow update: if isSignedIn() 
+                    && existing().userId == request.auth.uid
+                    && isValidNotification(incoming())
+                    && incoming().userId == existing().userId
+                    && incoming().title == existing().title
+                    && incoming().body == existing().body
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+                    
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Validation Blueprint for Review
+    // Expected fields: bookId (string), userId (string), rating (number 1-5), text (string), createdAt (timestamp), updatedAt (timestamp)
+    function isValidReview(data) {
+      return data.keys().hasAll(['bookId', 'userId', 'rating', 'text', 'createdAt', 'updatedAt']) 
+        && data.keys().size() == 6
+        && data.bookId is string && data.bookId.size() <= 128
+        && data.userId is string && data.userId == request.auth.uid
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.text is string && data.text.size() <= 4000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Reviews Collection
+    match /reviews/{reviewId} {
+      allow get: if existing().bookId is string;
+      
+      // The application requires showing reviews for books. 
+      // Clients evaluate `where` using bookId. 
+      allow list: if existing().bookId is string && existing().bookId != '';
+
+      allow create: if isSignedIn() 
+                    && isValidId(reviewId)
+                    && isValidReview(incoming()) 
+                    && incoming().createdAt == request.time
+                    && incoming().updatedAt == request.time;
+      
+      allow update: if isSignedIn() 
+                    && isValidReview(incoming())
+                    && incoming().userId == existing().userId
+                    && incoming().bookId == existing().bookId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().updatedAt == request.time
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'text', 'updatedAt']);
+
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

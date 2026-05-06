@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User preferences and notification tokens.",
+      "type": "object",
+      "properties": {
+        "fcmToken": { "type": "string" },
+        "followedAuthors": { "type": "array", "items": { "type": "string" } },
+        "followedCategories": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notifications for users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "bookId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "title", "body", "read", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user review and rating for a book.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "bookId": {
+          "type": "string"
+        },
+        "rating": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "text": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "timestamp"
+        }
+      },
+      "required": [
+        "userId",
+        "bookId",
+        "rating",
+        "text",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profiles and preferences."
+    },
+    "notifications/{notificationId}": {
+      "schema": {
+        "$ref": "#/entities/Notification"
+      },
+      "description": "User notifications."
+    },
+    "reviews/{reviewId}": {
+      "schema": {
+        "$ref": "#/entities/Review"
+      },
+      "description": "Stores book reviews where the reviewId is a combination of userId and bookId."
+    }
+  }
+}

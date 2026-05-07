@@ -3,7 +3,6 @@ import Fuse from 'fuse.js';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Search, Menu, Loader2, Heart, ChevronLeft, ChevronRight, LogIn, LogOut, Filter, X, Bell, History, ArrowUp } from 'lucide-react';
 import { BookCard } from './components/BookCard';
-import { AIBookseller } from './components/AIBookseller';
 import { BookDetailsModal } from './components/BookDetailsModal';
 import { QuickViewModal } from './components/QuickViewModal';
 import { MessageModal } from './components/MessageModal';
@@ -486,20 +485,9 @@ export default function App() {
               <h1 className="text-4xl md:text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight leading-tight">
                 Le novità più interessanti <br/><span className="text-amber-600">in Libri</span>
               </h1>
-              <p className="text-lg text-slate-600 font-medium mb-6">
+              <p className="text-lg text-slate-600 font-medium">
                 Esplora il database mondiale dei libri. Supportaci acquistando tramite i nostri link affiliati Amazon.
               </p>
-              <a 
-                href="https://www.amazon.it/amz-books/store?node=411663031&ref_=apb_psf&ie=UTF8&ref_=nav_cs_books&ref_=nav_cs_books&ccs_id=5d86b439-1c32-4df1-8302-f7400d8da2b0&filters=v1%3AFORMAT%5Bprint%5D" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#ff9900] hover:bg-[#e38800] text-slate-900 font-bold px-6 py-3 rounded-full transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-[#ff9900] focus:ring-offset-2"
-              >
-                Vedi i Libri in Evidenza su Amazon
-                <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
             </>
           ) : (
             <>
@@ -512,9 +500,6 @@ export default function App() {
             </>
           )}
         </section>
-
-        {/* AI Bookseller Section */}
-        <AIBookseller />
 
         <AdBanner />
 
@@ -717,8 +702,15 @@ export default function App() {
         </div>
         
         {(!isLoading && !error && displayedBooks.length > 0) && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={`${currentPage}-${searchQuery}-${activeCategory}-${showFavorites}-${showHistory}`}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
               {displayedBooks.map((book, idx) => (
                 <BookCard 
                   key={book.id} 
@@ -730,7 +722,7 @@ export default function App() {
                   onToggleFavorite={(e) => { e.stopPropagation(); toggleFavorite(book); }}
                 />
               ))}
-            </div>
+            </motion.div>
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
@@ -764,7 +756,7 @@ export default function App() {
                 </button>
               </div>
             )}
-          </>
+          </AnimatePresence>
         )}
 
         {!isLoading && !error && !showFavorites && !showHistory && displayedBooks.length === 0 && (

@@ -55,10 +55,9 @@ export function useReviews(bookIds: string[]) {
 }
 
 export async function submitReview(bookId: string, rating: number, text: string) {
-  if (!auth.currentUser) throw new Error("Must be logged in to review");
-  
-  const userId = auth.currentUser.uid;
-  const reviewId = `${userId}_${bookId}`;
+  const userId = auth.currentUser ? auth.currentUser.uid : 'anonymous';
+  const isAnonymous = userId === 'anonymous';
+  const reviewId = isAnonymous ? `anon_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : `${userId}_${bookId}`;
   
   await setDoc(doc(db, 'reviews', reviewId), {
     userId,

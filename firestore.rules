@@ -81,7 +81,8 @@ service cloud.firestore {
       return data.keys().hasAll(['bookId', 'userId', 'rating', 'text', 'createdAt', 'updatedAt']) 
         && data.keys().size() == 6
         && data.bookId is string && data.bookId.size() <= 128
-        && data.userId is string && data.userId == request.auth.uid
+        && data.userId is string && data.userId.size() <= 128
+        && (data.userId == 'anonymous' || data.userId == request.auth.uid)
         && data.rating is number && data.rating >= 1 && data.rating <= 5
         && data.text is string && data.text.size() <= 4000
         && data.createdAt is timestamp
@@ -96,21 +97,21 @@ service cloud.firestore {
       // Clients evaluate `where` using bookId. 
       allow list: if existing().bookId is string && existing().bookId != '';
 
-      allow create: if isSignedIn() 
-                    && isValidId(reviewId)
+      allow create: if isValidId(reviewId)
                     && isValidReview(incoming()) 
                     && incoming().createdAt == request.time
                     && incoming().updatedAt == request.time;
       
       allow update: if isSignedIn() 
                     && isValidReview(incoming())
+                    && incoming().userId != 'anonymous'
                     && incoming().userId == existing().userId
                     && incoming().bookId == existing().bookId
                     && incoming().createdAt == existing().createdAt
                     && incoming().updatedAt == request.time
                     && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'text', 'updatedAt']);
 
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().userId != 'anonymous' && existing().userId == request.auth.uid;
     }
   }
 }

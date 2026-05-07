@@ -4,6 +4,53 @@ import { getToken } from 'firebase/messaging';
 import { db, auth, messaging } from '../lib/firebase';
 import { UserProfile } from '../types';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -44,10 +91,14 @@ export function useUserProfile() {
       ? authors.filter(a => a !== author)
       : [...authors, author];
       
-    await updateDoc(doc(db, 'users', userId), {
-      followedAuthors: newAuthors,
-      updatedAt: serverTimestamp()
-    });
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        followedAuthors: newAuthors,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${userId}`);
+    }
   };
 
   const toggleFollowCategory = async (category: string) => {
@@ -58,26 +109,34 @@ export function useUserProfile() {
       ? categories.filter(c => c !== category)
       : [...categories, category];
       
-    await updateDoc(doc(db, 'users', userId), {
-      followedCategories: newCategories,
-      updatedAt: serverTimestamp()
-    });
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        followedCategories: newCategories,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${userId}`);
+    }
   };
 
   const saveFCMToken = async (token: string) => {
     if (!auth.currentUser) return;
     const userId = auth.currentUser.uid;
-    await setDoc(doc(db, 'users', userId), {
-      fcmToken: token,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'users', userId), {
+        fcmToken: token,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `users/${userId}`);
+    }
   };
 
   const requestPushPermission = async () => {
     if (!auth.currentUser) return;
     try {
       const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
+      if (permission === 'granted' && messaging) {
         const token = await getToken(messaging, { 
           // vapidKey would be here if real push setup with GCP, but we can call it empty to test
         });

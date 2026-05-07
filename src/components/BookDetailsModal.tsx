@@ -43,6 +43,27 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
   const isFollowingAuthor = profile?.followedAuthors?.includes(book.author);
   const isFollowingCategory = book.category ? profile?.followedCategories?.includes(book.category) : false;
 
+  const handleToggleFollowAuthor = async () => {
+    try {
+      await toggleFollowAuthor(book.author);
+      const isNowFollowing = !isFollowingAuthor;
+      setModalConfig({ isOpen: true, title: 'Successo', message: isNowFollowing ? `Ora segui ${book.author}.` : `Non segui più ${book.author}.`, type: 'success' });
+    } catch (err: any) {
+      setModalConfig({ isOpen: true, title: 'Errore', message: err.message || 'Errore durante l\'aggiornamento.', type: 'error' });
+    }
+  };
+
+  const handleToggleFollowCategory = async () => {
+    if(!book.category) return;
+    try {
+      await toggleFollowCategory(book.category);
+      const isNowFollowing = !isFollowingCategory;
+      setModalConfig({ isOpen: true, title: 'Successo', message: isNowFollowing ? `Ora segui la categoria ${book.category}.` : `Non segui più la categoria ${book.category}.`, type: 'success' });
+    } catch (err: any) {
+      setModalConfig({ isOpen: true, title: 'Errore', message: err.message || 'Errore durante l\'aggiornamento.', type: 'error' });
+    }
+  };
+
   React.useEffect(() => {
     if (myReview) {
       setRating(myReview.rating);
@@ -154,7 +175,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
                 </span>
                 {user && book.category && (
                   <button
-                    onClick={() => toggleFollowCategory(book.category!)}
+                    onClick={handleToggleFollowCategory}
                     className={`text-xs px-2 py-1 rounded-full border transition-colors ${
                       isFollowingCategory 
                         ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' 
@@ -172,7 +193,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
                 <p className="text-xl text-slate-600 font-medium">{book.author}</p>
                 {user && (
                   <button
-                    onClick={() => toggleFollowAuthor(book.author)}
+                    onClick={handleToggleFollowAuthor}
                     className={`text-xs px-2 py-1 rounded-full border transition-colors ${
                       isFollowingAuthor 
                         ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' 
@@ -275,39 +296,39 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
             <div className="mb-8 border-t border-slate-200 pt-8">
               <h3 className="text-xl font-bold text-slate-900 mb-6 font-serif">Recensioni dei Lettori</h3>
               
-              {user ? (
-                <div className="bg-slate-50 rounded-xl p-5 mb-8 border border-slate-200">
-                  <h4 className="font-bold text-slate-900 mb-4 text-sm uppercase tracking-wide">
-                    {myReview ? "La TUA Récensione" : "Scrivi una Recensione"}
-                  </h4>
-                  <form onSubmit={handleReviewSubmit} className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm font-medium text-slate-600">Voto:</label>
-                      <select 
-                        value={rating} 
-                        onChange={e => setRating(Number(e.target.value))}
-                        className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-2"
-                      >
-                        {[5,4,3,2,1].map(num => (
-                          <option key={num} value={num}>{num} Stelle</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <textarea 
-                        value={reviewText}
-                        onChange={e => setReviewText(e.target.value)}
-                        placeholder="Cosa ne pensi di questo libro?"
-                        required
-                        rows={3}
-                        className="block w-full p-3 text-sm text-slate-900 bg-white rounded-lg border border-slate-300 focus:ring-amber-500 focus:border-amber-500 placeholder-slate-400"
-                      />
-                    </div>
-                    <div className="flex gap-3">
+              <div className="bg-slate-50 rounded-xl p-5 mb-8 border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-4 text-sm uppercase tracking-wide">
+                  {myReview ? "La TUA Recensione" : "Scrivi una Recensione"}
+                </h4>
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-slate-600">Voto:</label>
+                    <select 
+                      value={rating} 
+                      onChange={e => setRating(Number(e.target.value))}
+                      className="bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-2"
+                    >
+                      {[5,4,3,2,1].map(num => (
+                        <option key={num} value={num}>{num} Stelle</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <textarea 
+                      value={reviewText}
+                      onChange={e => setReviewText(e.target.value)}
+                      placeholder="Cosa ne pensi di questo libro?"
+                      required
+                      rows={3}
+                      className="block w-full p-3 text-sm text-slate-900 bg-white rounded-lg border border-slate-300 focus:ring-amber-500 focus:border-amber-500 placeholder-slate-400"
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                    <div className="flex gap-3 w-full sm:w-auto">
                       <button 
                         type="submit" 
                         disabled={submitting}
-                        className="text-white bg-amber-500 hover:bg-amber-600 focus:ring-4 focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors disabled:opacity-50"
+                        className="flex-1 sm:flex-none text-white bg-amber-500 hover:bg-amber-600 focus:ring-4 focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors disabled:opacity-50 text-center"
                       >
                         {submitting ? 'Salvataggio...' : (myReview ? 'Aggiorna Recensione' : 'Pubblica Recensione')}
                       </button>
@@ -315,30 +336,34 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
                         <button 
                           type="button" 
                           onClick={handleDeleteReview}
-                          className="text-red-600 bg-red-50 hover:bg-red-100 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors"
+                          className="flex-1 sm:flex-none text-red-600 bg-red-50 hover:bg-red-100 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors text-center"
                         >
                           Elimina
                         </button>
                       )}
                     </div>
-                  </form>
-                </div>
-              ) : (
-                <div className="bg-amber-50 rounded-xl p-5 mb-8 text-center border border-amber-100">
-                  <p className="text-amber-800 font-medium text-sm">
-                    Devi effettuare l'accesso per poter lasciare una recensione.
-                  </p>
-                </div>
-              )}
+                    {!user && (
+                      <p className="text-xs text-slate-500 w-full sm:w-auto text-center sm:text-right">
+                        Stai pubblicando come <strong>Ospite</strong>. Le recensioni degli ospiti non possono essere modificate.
+                      </p>
+                    )}
+                  </div>
+                </form>
+              </div>
 
               {loadingReviews ? (
                 <p className="text-slate-500 text-sm">Caricamento recensioni in corso...</p>
-              ) : reviews.length > 0 ? (
+              ) : reviews.filter(r => !(user && r.userId === user.uid)).length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map(review => (
+                  {reviews.filter(r => !(user && r.userId === user.uid)).map(review => (
                     <div key={review.id} className="bg-white rounded-xl p-5 border border-slate-100 shadow-sm">
                       <div className="flex justify-between items-start mb-2">
-                        <RatingDisplay rating={review.rating} size={14} />
+                        <div className="flex items-center gap-2">
+                          <RatingDisplay rating={review.rating} size={14} />
+                          <span className="text-xs text-slate-400">
+                            da {review.userId === 'anonymous' ? 'Ospite' : 'Utente verificato'}
+                          </span>
+                        </div>
                       </div>
                       <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
                         {review.text}

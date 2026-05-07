@@ -7,10 +7,17 @@ export const BOOKS_NODE = '411663031';
 export function getAmazonAffiliateLink(title: string, author: string, asinOrIsbn?: string) {
   const baseUrl = 'https://www.amazon.it';
   
-  // Utilizziamo titolo (e autore se presente) per far corrispondere il formato richiesto
+  if (asinOrIsbn) {
+    const cleanId = asinOrIsbn.replace(/[^a-zA-Z0-9]/g, '');
+    if (cleanId.length === 10 || cleanId.length === 13) {
+      return `${baseUrl}/dp/${cleanId}?tag=${AFFILIATE_TAG}`;
+    }
+  }
+
+  // Fallback to search if no valid ID
   const searchQuery = `${title}`;
   const query = encodeURIComponent(searchQuery.trim()).replace(/%20/g, '+');
   
-  return `${baseUrl}/s?k=${query}&tag=${AFFILIATE_TAG}`;
+  return `${baseUrl}/s?k=${query}&i=stripbooks&tag=${AFFILIATE_TAG}`;
 }
 

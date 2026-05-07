@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Facebook, Twitter, MessageCircle, Share2, Link2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 

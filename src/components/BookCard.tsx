@@ -26,6 +26,7 @@ export const BookCard: React.FC<BookCardProps> = ({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const amazonUrl = getAmazonAffiliateLink(book.title, book.author, book.isbn);
   
   // Se disponibile cover dal Google Books API usiamo quella (migliore qualità),
@@ -167,9 +168,20 @@ export const BookCard: React.FC<BookCardProps> = ({
         </div>
         <div className="hidden sm:block flex-grow mb-4">
           <p 
-            className="text-sm text-slate-600 line-clamp-3"
-            dangerouslySetInnerHTML={{ __html: book.description || '' }}
+            className={`text-sm text-slate-600 transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}
+            dangerouslySetInnerHTML={{ __html: book.description || 'Nessuna descrizione disponibile.' }}
           />
+          {book.description && book.description.length > 150 && (
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsExpanded(!isExpanded); 
+              }}
+              className="text-amber-600 text-xs font-semibold hover:text-amber-700 mt-1 inline-block"
+            >
+              {isExpanded ? 'Mostra meno' : 'Leggi di più'}
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 mt-auto">

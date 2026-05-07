@@ -122,8 +122,27 @@ export default function App() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [scrollPositions, setScrollPositions] = useState<Record<number, number>>({});
+  const [modalScrollY, setModalScrollY] = useState(0);
+
+  // Lock body scroll and save position when modals open
+  useEffect(() => {
+    if (selectedBook || quickViewBook) {
+      setModalScrollY(window.scrollY);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+      if (modalScrollY > 0) {
+        window.scrollTo({ top: modalScrollY, behavior: 'instant' });
+      }
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [selectedBook, quickViewBook]);
 
   useEffect(() => {
+
     const handleScroll = () => {
       if (window.scrollY > 400) {
         setShowBackToTop(true);
@@ -211,6 +230,7 @@ export default function App() {
   // Reset page when search or category changes, but not on sort
   useEffect(() => {
     setCurrentPage(1);
+    setScrollPositions({});
   }, [activeCategory, activeSubCategory, searchQuery, showFavorites, showHistory, filterAuthor, filterPublisher]);
 
   // Effettua lo scraping / fetching API pagination based
@@ -299,8 +319,13 @@ export default function App() {
   // Applico la ricerca Fuzzy per tollerare errori di battitura
   if (searchQuery.trim() !== '' && sortBy === 'relevance' && !showFavorites && !showHistory) {
     const fuse = new Fuse(sortedBooks, {
-      keys: ['title', 'author', 'publisher'],
-      threshold: 0.6,
+      keys: [
+        { name: 'title', weight: 0.5 },
+        { name: 'author', weight: 0.3 },
+        { name: 'publisher', weight: 0.1 },
+        { name: 'description', weight: 0.1 }
+      ],
+      threshold: 0.4,
       distance: 100,
       ignoreLocation: true,
     });
@@ -312,8 +337,13 @@ export default function App() {
   } else if (searchQuery.trim() !== '' && (showFavorites || showHistory)) {
     // Ricerca fuzzy anche nei preferiti e cronologia
     const fuse = new Fuse(sortedBooks, {
-      keys: ['title', 'author', 'publisher'],
-      threshold: 0.6,
+      keys: [
+        { name: 'title', weight: 0.5 },
+        { name: 'author', weight: 0.3 },
+        { name: 'publisher', weight: 0.1 },
+        { name: 'description', weight: 0.1 }
+      ],
+      threshold: 0.4,
       distance: 100,
       ignoreLocation: true,
     });
@@ -713,7 +743,7 @@ export default function App() {
             >
               {displayedBooks.map((book, idx) => (
                 <BookCard 
-                  key={book.id} 
+                  key={`${book.id}-${idx}`} 
                   book={book} 
                   delay={idx * 0.05} 
                   onClick={() => setSelectedBook(book)}
@@ -729,8 +759,13 @@ export default function App() {
               <div className="flex justify-center items-center gap-4 mt-12 bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-200 w-fit mx-auto">
                 <button
                   onClick={() => {
-                    setCurrentPage(p => Math.max(1, p - 1));
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    const currentY = window.scrollY;
+                    setScrollPositions(prev => ({ ...prev, [currentPage]: currentY }));
+                    const nextP = Math.max(1, currentPage - 1);
+                    setCurrentPage(nextP);
+                    setTimeout(() => {
+                      window.scrollTo({ top: scrollPositions[nextP] || 0, behavior: 'instant' });
+                    }, 10);
                   }}
                   disabled={currentPage === 1}
                   className="p-2 bg-slate-50 text-slate-600 rounded-full hover:bg-amber-100 hover:text-amber-700 disabled:opacity-50 disabled:hover:bg-slate-50 disabled:hover:text-slate-600 transition-colors"
@@ -745,8 +780,13 @@ export default function App() {
 
                 <button
                   onClick={() => {
-                    setCurrentPage(p => Math.min(totalPages, p + 1));
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    const currentY = window.scrollY;
+                    setScrollPositions(prev => ({ ...prev, [currentPage]: currentY }));
+                    const nextP = Math.min(totalPages, currentPage + 1);
+                    setCurrentPage(nextP);
+                    setTimeout(() => {
+                      window.scrollTo({ top: scrollPositions[nextP] || 0, behavior: 'instant' });
+                    }, 10);
                   }}
                   disabled={currentPage === totalPages}
                   className="p-2 bg-slate-50 text-slate-600 rounded-full hover:bg-amber-100 hover:text-amber-700 disabled:opacity-50 disabled:hover:bg-slate-50 disabled:hover:text-slate-600 transition-colors"

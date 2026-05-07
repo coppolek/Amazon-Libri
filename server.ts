@@ -33,10 +33,12 @@ async function startServer() {
       const html = await response.text();
       const $ = cheerio.load(html);
       const results: any[] = [];
+      const seenAsins = new Set<string>();
       
       $('.s-result-item[data-asin]').each((i, el) => {
         const asin = $(el).attr('data-asin');
-        if (!asin) return;
+        if (!asin || seenAsins.has(asin)) return;
+        seenAsins.add(asin);
         
         const title = $(el).find('h2 span').text().trim();
         // try to find author

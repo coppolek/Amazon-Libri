@@ -75,6 +75,33 @@ service cloud.firestore {
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }
 
+    // Validation Blueprint for AppConfig
+    function isValidAppConfig(data) {
+      return data.keys().hasAll(['defaultSearchQuery', 'updatedAt']) 
+        && data.keys().size() == 2
+        && data.defaultSearchQuery is string && data.defaultSearchQuery.size() <= 256
+        && data.updatedAt is timestamp;
+    }
+
+    match /config/{configId} {
+      allow get, list: if true; // Public configuration
+
+      // Hardcoded admin email for this specific configuration
+      allow create: if isSignedIn()
+                    && request.auth.token.email == 'coppolek@gmail.com'
+                    && isValidId(configId)
+                    && isValidAppConfig(incoming()) 
+                    && incoming().updatedAt == request.time;
+                    
+      allow update: if isSignedIn()
+                    && request.auth.token.email == 'coppolek@gmail.com'
+                    && isValidAppConfig(incoming())
+                    && incoming().updatedAt == request.time
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['defaultSearchQuery', 'updatedAt']);
+                    
+      allow delete: if false;
+    }
+
     // Validation Blueprint for Review
     // Expected fields: bookId (string), userId (string), rating (number 1-5), text (string), createdAt (timestamp), updatedAt (timestamp)
     function isValidReview(data) {

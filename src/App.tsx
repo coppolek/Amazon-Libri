@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Search, Menu, Loader2, Heart, ChevronLeft, ChevronRight, LogIn, LogOut, Filter, X, Bell, History, ArrowUp, User as UserIcon } from 'lucide-react';
+import { BookOpen, Search, Menu, Loader2, Heart, ChevronLeft, ChevronRight, LogIn, LogOut, Filter, X, Bell, History, ArrowUp, User as UserIcon, Shield } from 'lucide-react';
 import { BookCard } from './components/BookCard';
 import { BookDetailsModal } from './components/BookDetailsModal';
 import { QuickViewModal } from './components/QuickViewModal';
@@ -17,6 +17,8 @@ import { useAuth } from './hooks/useAuth';
 import { useReviews } from './hooks/useReviews';
 import { useNotifications, simulateNewBookNotification } from './hooks/useNotifications';
 import { useUserProfile } from './hooks/useUserProfile';
+import { useAppConfig } from './hooks/useAppConfig';
+import { AdminConfigModal } from './components/AdminConfigModal';
 import amazonReleasesRaw from './lib/amazon-releases.json';
 
 const amazonReleases: Book[] = amazonReleasesRaw.map((b, i) => ({
@@ -114,6 +116,26 @@ export default function App() {
       return "Le novità più interessanti in Libri";
     }
   });
+
+  const { config } = useAppConfig();
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (config?.defaultSearchQuery) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        // Change only if URL doesn't have an explicit 'q' and current query matches the old default (meaning user didn't type it)
+        if (!params.get('q') && (searchQuery === "Le novità più interessanti in Libri" || searchQuery === "")) {
+          setSearchQuery(config.defaultSearchQuery);
+        }
+      } catch (e) {
+         if (searchQuery === "Le novità più interessanti in Libri" || searchQuery === "") {
+          setSearchQuery(config.defaultSearchQuery);
+         }
+      }
+    }
+  }, [config?.defaultSearchQuery]);
+
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -504,6 +526,16 @@ export default function App() {
             <div className="flex border-l border-slate-200 pl-2 ml-2">
               {isAuthReady && user ? (
                 <>
+                  {user.email === 'coppolek@gmail.com' && (
+                    <button 
+                      onClick={() => setIsAdminModalOpen(true)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full font-medium transition-colors text-amber-600 hover:bg-amber-50"
+                      title="Admin"
+                    >
+                      <Shield className="w-5 h-5" />
+                      <span className="hidden lg:inline text-sm">Admin</span>
+                    </button>
+                  )}
                   <button 
                     onClick={() => setIsProfileOpen(true)}
                     className="flex items-center gap-2 px-3 py-2 rounded-full font-medium transition-colors text-slate-600 hover:bg-slate-100"
@@ -551,7 +583,7 @@ export default function App() {
 
         {/* Hero Section */}
         <section className="text-center max-w-3xl mx-auto mb-12">
-          {(!showFavorites && !showHistory && (searchQuery === "" || searchQuery === "Le novità più interessanti in Libri") && activeCategory === "Tutti" && !activeSubCategory) ? (
+          {(!showFavorites && !showHistory && (searchQuery === "" || searchQuery === (config?.defaultSearchQuery || "Le novità più interessanti in Libri")) && activeCategory === "Tutti" && !activeSubCategory) ? (
             <>
               <h1 className="text-4xl md:text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight leading-tight">
                 Le novità più interessanti <br/><span className="text-amber-600">del 2026 in Libri</span>
@@ -631,7 +663,7 @@ export default function App() {
                     : activeSubCategory 
                       ? activeSubCategory 
                       : activeCategory === 'Tutti' 
-                        ? 'Le novità più interessanti in Libri' 
+                        ? (config?.defaultSearchQuery || 'Le novità più interessanti in Libri')
                         : activeCategory}
                 </h2>
                 <p className="text-slate-500">Trovati {totalApiItems} {totalApiItems === 1 ? 'libro' : 'libri'}.</p>
@@ -1093,6 +1125,11 @@ export default function App() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      <AdminConfigModal 
+        isOpen={isAdminModalOpen} 
+        onClose={() => setIsAdminModalOpen(false)} 
+      />
 
       <footer className="max-w-7xl mx-auto px-4 md:px-6 mt-24 text-center text-slate-500 text-sm">
         <p className="mb-2">© {new Date().getFullYear()} LibriScelti. Tutti i diritti riservati.</p>

@@ -402,7 +402,17 @@ export default function App() {
       {/* Header NavBar */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-600">
+          <div 
+            className="flex items-center gap-2 text-amber-600 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => {
+              setSearchQuery('');
+              setActiveCategory('Tutti');
+              setActiveSubCategory(null);
+              setShowFavorites(false);
+              setShowHistory(false);
+              setCurrentPage(1);
+            }}
+          >
             <BookOpen className="w-7 h-7" />
             <span className="font-serif font-bold text-xl tracking-tight text-slate-900">LibriScelti</span>
           </div>
@@ -644,9 +654,9 @@ export default function App() {
                       <option value="Tutti">Tutte le categorie</option>
                       {MAIN_CATEGORIES.filter(c => c !== "Tutti").map(cat => (
                         <optgroup key={cat} label={cat}>
-                          <option value={cat}>Tutto in {cat}</option>
+                          <option key={`tutto-${cat}`} value={cat}>Tutto in {cat}</option>
                           {(SUB_CATEGORIES[cat] || []).map(sub => (
-                            <option key={sub} value={sub}>{sub}</option>
+                            <option key={`sub-${sub}`} value={sub}>{sub}</option>
                           ))}
                         </optgroup>
                       ))}
@@ -908,9 +918,9 @@ export default function App() {
                     <option value="Tutti">Tutte le categorie</option>
                     {MAIN_CATEGORIES.filter(c => c !== "Tutti").map(cat => (
                       <optgroup key={cat} label={cat}>
-                        <option value={cat}>Tutto in {cat}</option>
+                        <option key={`tutto-${cat}`} value={cat}>Tutto in {cat}</option>
                         {(SUB_CATEGORIES[cat] || []).map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
+                          <option key={`sub-${sub}`} value={sub}>{sub}</option>
                         ))}
                       </optgroup>
                     ))}

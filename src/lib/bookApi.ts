@@ -47,35 +47,68 @@ const FALLBACK_BOOKS: Book[] = [
 export async function searchRealBooks(query: string, maxResults = 16, startIndex = 0, orderBy = 'relevance'): Promise<{ items: Book[], totalItems: number }> {
   try {
     const q = query.trim() || 'romanzi italiani';
-    // Amazon usa le pagine. Convertiamo startIndex in page.
-    const page = Math.floor(startIndex / maxResults) + 1;
     
-    const url = `/api/search?q=${encodeURIComponent(q)}&page=${page}`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${maxResults}&startIndex=${startIndex}&langRestrict=it`;
     
     let response = await fetch(url);
     
     let retries = 2;
     while (!response.ok && response.status >= 500 && retries > 0) {
-      console.warn(`API returned ${response.status}. Retrying...`);
+      console.warn(`Google Books API returned ${response.status}. Retrying...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
       response = await fetch(url);
       retries--;
     }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.warn(`Scraping backend failed: ${response.status}`);
+      console.warn(`Google Books API request failed: ${response.status}`);
       return { items: FALLBACK_BOOKS, totalItems: FALLBACK_BOOKS.length };
     }
 
     const data = await response.json();
     if (!data.items || data.items.length === 0) {
-      console.warn("Nessun risultato da Amazon. Utilizzo catalogo fallback.");
+      console.warn("Nessun risultato da Google Books. Utilizzo catalogo fallback.");
       return { items: FALLBACK_BOOKS, totalItems: FALLBACK_BOOKS.length };
     }
-    return { items: data.items, totalItems: data.totalItems };
+
+    const results: Book[] = [];
+    const seenIsbns = new Set<string>();
+    
+    for (const item of data.items) {
+      const volInfo = item.volumeInfo;
+      let isbn = item.id;
+      if (volInfo.industryIdentifiers) {
+         const trueIsbn = volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_13') || volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_10');
+         if (trueIsbn) isbn = trueIsbn.identifier;
+      }
+
+      if (seenIsbns.has(isbn)) continue;
+      seenIsbns.add(isbn);
+
+      // Get higher zoom image if possible
+      let coverUrl = volInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || null;
+      if (coverUrl) {
+        coverUrl = coverUrl.replace('&zoom=1', '&zoom=0');
+      }
+
+      results.push({
+        id: item.id || isbn,
+        isbn,
+        title: volInfo.title || "Titolo Sconosciuto",
+        author: volInfo.authors ? volInfo.authors.join(', ') : "Autore Sconosciuto",
+        coverUrl,
+        category: volInfo.categories ? volInfo.categories[0] : "Altro",
+        description: volInfo.description || "Nessuna descrizione disponibile.",
+        pageCount: volInfo.pageCount,
+        publishedDate: volInfo.publishedDate,
+        publisher: volInfo.publisher
+      });
+    }
+
+    return { items: results, totalItems: data.totalItems || 0 };
   } catch (error) {
-    console.error("Errore nello scaricamento dei libri da Amazon:", error);
+    console.error("Errore nello scaricamento dei libri da Google Books:", error);
     return { items: FALLBACK_BOOKS, totalItems: FALLBACK_BOOKS.length };
   }
 }
+

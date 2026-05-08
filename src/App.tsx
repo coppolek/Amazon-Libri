@@ -127,10 +127,16 @@ export default function App() {
         // Change only if URL doesn't have an explicit 'q' and current query matches the old default (meaning user didn't type it)
         if (!params.get('q') && (searchQuery === "Le novità più interessanti in Libri" || searchQuery === "")) {
           setSearchQuery(config.defaultSearchQuery);
+          if (config.defaultSearchQuery !== "Le novità più interessanti in Libri") {
+            setFilterYear(prev => prev === '2026' ? '' : prev);
+          }
         }
       } catch (e) {
          if (searchQuery === "Le novità più interessanti in Libri" || searchQuery === "") {
           setSearchQuery(config.defaultSearchQuery);
+          if (config.defaultSearchQuery !== "Le novità più interessanti in Libri") {
+            setFilterYear(prev => prev === '2026' ? '' : prev);
+          }
          }
       }
     }
@@ -586,7 +592,9 @@ export default function App() {
           {(!showFavorites && !showHistory && (searchQuery === "" || searchQuery === (config?.defaultSearchQuery || "Le novità più interessanti in Libri")) && activeCategory === "Tutti" && !activeSubCategory) ? (
             <>
               <h1 className="text-4xl md:text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight leading-tight">
-                Le novità più interessanti <br/><span className="text-amber-600">del 2026 in Libri</span>
+                {(config?.defaultSearchQuery && config.defaultSearchQuery !== "Le novità più interessanti in Libri") 
+                  ? config.defaultSearchQuery 
+                  : <>Le novità più interessanti <br/><span className="text-amber-600">del 2026 in Libri</span></>}
               </h1>
               <p className="text-lg text-slate-600 font-medium">
                 Esplora il database mondiale dei libri. Supportaci acquistando tramite i nostri link affiliati Amazon.

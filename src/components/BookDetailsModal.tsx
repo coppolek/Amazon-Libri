@@ -237,7 +237,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
               ) : (
                 <>
                   <ShoppingCart className="w-5 h-5" />
-                  Acquista su Amazon
+                  Compra su Amazon
                 </>
               )}
             </a>

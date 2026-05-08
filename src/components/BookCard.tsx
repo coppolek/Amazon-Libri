@@ -210,7 +210,7 @@ export const BookCard: React.FC<BookCardProps> = ({
             ) : (
               <>
                 <ShoppingCart className="w-4 h-4" />
-                Acquista su Amazon
+                Compra su Amazon
               </>
             )}
           </motion.button>

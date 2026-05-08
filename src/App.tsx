@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Search, Menu, Loader2, Heart, ChevronLeft, ChevronRight, LogIn, LogOut, Filter, X, Bell, History, ArrowUp } from 'lucide-react';
+import { BookOpen, Search, Menu, Loader2, Heart, ChevronLeft, ChevronRight, LogIn, LogOut, Filter, X, Bell, History, ArrowUp, User as UserIcon } from 'lucide-react';
 import { BookCard } from './components/BookCard';
 import { BookDetailsModal } from './components/BookDetailsModal';
 import { QuickViewModal } from './components/QuickViewModal';
 import { MessageModal } from './components/MessageModal';
 import { AdBanner } from './components/AdBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
+import { UserProfileModal } from './components/UserProfileModal';
 import { Category, Book, Review } from './types';
 import { searchRealBooks } from './lib/bookApi';
 import { useFavorites } from './hooks/useFavorites';
@@ -108,9 +109,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return params.get('q') || "";
+      return params.get('q') || "Le novità più interessanti in Libri";
     } catch (e) {
-      return "";
+      return "Le novità più interessanti in Libri";
     }
   });
   const [books, setBooks] = useState<Book[]>([]);
@@ -122,18 +123,18 @@ export default function App() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [scrollPositions, setScrollPositions] = useState<Record<number, number>>({});
-  const [modalScrollY, setModalScrollY] = useState(0);
+  const scrollPositions = useRef<Record<number, number>>({});
+  const modalScrollY = useRef(0);
 
   // Lock body scroll and save position when modals open
   useEffect(() => {
     if (selectedBook || quickViewBook) {
-      setModalScrollY(window.scrollY);
+      modalScrollY.current = window.scrollY;
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
-      if (modalScrollY > 0) {
-        window.scrollTo({ top: modalScrollY, behavior: 'instant' });
+      if (modalScrollY.current > 0) {
+        window.scrollTo({ top: modalScrollY.current, behavior: 'instant' });
       }
     }
     return () => {
@@ -165,6 +166,7 @@ export default function App() {
   const { profile, isProfileLoading, toggleFollowAuthor, toggleFollowCategory } = useUserProfile();
   const { notifications, unreadCount } = useNotifications();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifiedBooks, setNotifiedBooks] = useState<Set<string>>(() => new Set());
 
   // Simulate pushing notifications when new books are discovered
@@ -208,6 +210,7 @@ export default function App() {
 
   const [filterAuthor, setFilterAuthor] = useState('');
   const [filterPublisher, setFilterPublisher] = useState('');
+  const [filterYear, setFilterYear] = useState('2026');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
@@ -230,8 +233,8 @@ export default function App() {
   // Reset page when search or category changes, but not on sort
   useEffect(() => {
     setCurrentPage(1);
-    setScrollPositions({});
-  }, [activeCategory, activeSubCategory, searchQuery, showFavorites, showHistory, filterAuthor, filterPublisher]);
+    scrollPositions.current = {};
+  }, [activeCategory, activeSubCategory, searchQuery, showFavorites, showHistory, filterAuthor, filterPublisher, filterYear]);
 
   // Effettua lo scraping / fetching API pagination based
   useEffect(() => {
@@ -241,7 +244,7 @@ export default function App() {
       setIsLoading(true);
       setError(null);
       
-      const isHomePage = searchQuery.trim() === '' && activeCategory === 'Tutti' && !activeSubCategory;
+      const isHomePage = searchQuery.trim() === '' && activeCategory === 'Tutti' && !activeSubCategory && filterAuthor.trim() === '' && filterPublisher.trim() === '' && (filterYear.trim() === '' || filterYear.trim() === '2026');
       
       try {
         if (isHomePage) {
@@ -251,9 +254,19 @@ export default function App() {
         } else {
           // Se c'è una query di ricerca usiamo quella, altrimenti la categoria
           const categoryKey = activeSubCategory || activeCategory;
-          const queryToSearch = searchQuery.trim() !== '' 
-            ? searchQuery 
-            : (CATEGORY_QUERIES[categoryKey] || 'libri');
+          
+          let queryParts = [];
+          if (searchQuery.trim() !== '') {
+            queryParts.push(searchQuery.trim());
+          } else {
+            queryParts.push(CATEGORY_QUERIES[categoryKey] || 'libri');
+          }
+          
+          if (filterAuthor.trim() !== '') queryParts.push(`inauthor:${filterAuthor.trim()}`);
+          if (filterPublisher.trim() !== '') queryParts.push(`inpublisher:${filterPublisher.trim()}`);
+          if (filterYear.trim() !== '') queryParts.push(filterYear.trim());
+            
+          const queryToSearch = queryParts.join('+');
             
           const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
           const apiOrderBy = sortBy === 'date' ? 'newest' : 'relevance';
@@ -284,7 +297,7 @@ export default function App() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [activeCategory, activeSubCategory, searchQuery, showFavorites, showHistory, currentPage, sortBy]);
+  }, [activeCategory, activeSubCategory, searchQuery, showFavorites, showHistory, currentPage, sortBy, filterAuthor, filterPublisher, filterYear]);
 
   const totalItems = showHistory ? history.length : (showFavorites ? favorites.length : totalApiItems);
   const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -314,6 +327,14 @@ export default function App() {
   if (filterPublisher.trim() !== '') {
     const q = filterPublisher.toLowerCase().trim();
     sortedBooks = sortedBooks.filter(book => (book.publisher || '').toLowerCase().includes(q));
+  }
+
+  if (filterYear.trim() !== '') {
+    const q = filterYear.trim();
+    sortedBooks = sortedBooks.filter(book => {
+      if (!book.publishedDate) return false;
+      return book.publishedDate.startsWith(q);
+    });
   }
 
   // Applico la ricerca Fuzzy per tollerare errori di battitura
@@ -482,14 +503,24 @@ export default function App() {
             </button>
             <div className="flex border-l border-slate-200 pl-2 ml-2">
               {isAuthReady && user ? (
-                <button 
-                  onClick={logout}
-                  className="flex items-center gap-2 px-3 py-2 rounded-full font-medium transition-colors text-slate-600 hover:bg-slate-100"
-                  title="Esci"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="hidden sm:inline text-sm">Esci</span>
-                </button>
+                <>
+                  <button 
+                    onClick={() => setIsProfileOpen(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full font-medium transition-colors text-slate-600 hover:bg-slate-100"
+                    title="Profilo"
+                  >
+                    <UserIcon className="w-5 h-5" />
+                    <span className="hidden lg:inline text-sm">Profilo</span>
+                  </button>
+                  <button 
+                    onClick={logout}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full font-medium transition-colors text-slate-600 hover:bg-slate-100"
+                    title="Esci"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="hidden sm:inline text-sm">Esci</span>
+                  </button>
+                </>
               ) : isAuthReady ? (
                 <button 
                   onClick={login}
@@ -520,10 +551,10 @@ export default function App() {
 
         {/* Hero Section */}
         <section className="text-center max-w-3xl mx-auto mb-12">
-          {(!showFavorites && !showHistory && searchQuery === "" && activeCategory === "Tutti" && !activeSubCategory) ? (
+          {(!showFavorites && !showHistory && (searchQuery === "" || searchQuery === "Le novità più interessanti in Libri") && activeCategory === "Tutti" && !activeSubCategory) ? (
             <>
               <h1 className="text-4xl md:text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight leading-tight">
-                Le novità più interessanti <br/><span className="text-amber-600">in Libri</span>
+                Le novità più interessanti <br/><span className="text-amber-600">del 2026 in Libri</span>
               </h1>
               <p className="text-lg text-slate-600 font-medium">
                 Esplora il database mondiale dei libri. Supportaci acquistando tramite i nostri link affiliati Amazon.
@@ -653,10 +684,10 @@ export default function App() {
                     >
                       <option value="Tutti">Tutte le categorie</option>
                       {MAIN_CATEGORIES.filter(c => c !== "Tutti").map(cat => (
-                        <optgroup key={cat} label={cat}>
-                          <option key={`tutto-${cat}`} value={cat}>Tutto in {cat}</option>
+                        <optgroup key={`desktop-${cat}`} label={cat}>
+                          <option key={`desktop-tutto-${cat}`} value={cat}>Tutto in {cat}</option>
                           {(SUB_CATEGORIES[cat] || []).map(sub => (
-                            <option key={`sub-${sub}`} value={sub}>{sub}</option>
+                            <option key={`desktop-sub-${cat}-${sub}`} value={sub}>{sub}</option>
                           ))}
                         </optgroup>
                       ))}
@@ -737,6 +768,26 @@ export default function App() {
                   )}
                 </div>
               </div>
+              <div className="w-full sm:flex-1">
+                <label htmlFor="filter-year" className="block text-sm font-medium text-slate-700 mb-1">
+                  Anno Pubblicazione
+                </label>
+                <div className="relative">
+                  <input
+                    id="filter-year"
+                    type="text"
+                    placeholder="Es. 2023"
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 px-3 text-sm focus:ring-amber-500 focus:border-amber-500 pr-8"
+                  />
+                  {filterYear && (
+                    <button onClick={() => setFilterYear('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -760,6 +811,7 @@ export default function App() {
                   onQuickView={() => setQuickViewBook(book)}
                   isFavorite={isFavorite(book.id)}
                   onToggleFavorite={(e) => { e.stopPropagation(); toggleFavorite(book); }}
+                  isFollowedAuthor={profile?.followedAuthors?.includes(book.author)}
                 />
               ))}
             </motion.div>
@@ -770,11 +822,11 @@ export default function App() {
                 <button
                   onClick={() => {
                     const currentY = window.scrollY;
-                    setScrollPositions(prev => ({ ...prev, [currentPage]: currentY }));
+                    scrollPositions.current[currentPage] = currentY;
                     const nextP = Math.max(1, currentPage - 1);
                     setCurrentPage(nextP);
                     setTimeout(() => {
-                      window.scrollTo({ top: scrollPositions[nextP] || 0, behavior: 'instant' });
+                      window.scrollTo({ top: scrollPositions.current[nextP] || 0, behavior: 'instant' });
                     }, 10);
                   }}
                   disabled={currentPage === 1}
@@ -791,11 +843,11 @@ export default function App() {
                 <button
                   onClick={() => {
                     const currentY = window.scrollY;
-                    setScrollPositions(prev => ({ ...prev, [currentPage]: currentY }));
+                    scrollPositions.current[currentPage] = currentY;
                     const nextP = Math.min(totalPages, currentPage + 1);
                     setCurrentPage(nextP);
                     setTimeout(() => {
-                      window.scrollTo({ top: scrollPositions[nextP] || 0, behavior: 'instant' });
+                      window.scrollTo({ top: scrollPositions.current[nextP] || 0, behavior: 'instant' });
                     }, 10);
                   }}
                   disabled={currentPage === totalPages}
@@ -856,24 +908,38 @@ export default function App() {
         type={modalConfig.type}
       />
 
+      {user && (
+        <UserProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          user={user}
+          profile={profile}
+          onUnfollowAuthor={toggleFollowAuthor}
+          onUnfollowCategory={toggleFollowCategory}
+        />
+      )}
+
       {/* Mobile Filters Drawer */}
       <AnimatePresence>
         {isMobileFiltersOpen && (
-          <>
-            <motion.div 
-              initial={{opacity:0}} 
-              animate={{opacity:1}} 
-              exit={{opacity:0}} 
-              onClick={() => setIsMobileFiltersOpen(false)} 
-              className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm sm:hidden" 
-            />
-            <motion.div 
-              initial={{y:'100%'}} 
-              animate={{y:0}} 
-              exit={{y:'100%'}} 
-              transition={{type: 'spring', bounce: 0, duration: 0.4}} 
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 p-6 sm:hidden pb-safe max-h-[90vh] overflow-y-auto"
-            >
+          <motion.div 
+            key="mobile-filters-overlay"
+            initial={{opacity:0}} 
+            animate={{opacity:1}} 
+            exit={{opacity:0}} 
+            onClick={() => setIsMobileFiltersOpen(false)} 
+            className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm sm:hidden" 
+          />
+        )}
+        {isMobileFiltersOpen && (
+          <motion.div 
+            key="mobile-filters-drawer"
+            initial={{y:'100%'}} 
+            animate={{y:0}} 
+            exit={{y:'100%'}} 
+            transition={{type: 'spring', bounce: 0, duration: 0.4}} 
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 p-6 sm:hidden pb-safe max-h-[90vh] overflow-y-auto"
+          >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-serif font-bold text-xl text-slate-900">Filtra e Ordina</h3>
                 <button onClick={() => setIsMobileFiltersOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200">
@@ -917,10 +983,10 @@ export default function App() {
                   >
                     <option value="Tutti">Tutte le categorie</option>
                     {MAIN_CATEGORIES.filter(c => c !== "Tutti").map(cat => (
-                      <optgroup key={cat} label={cat}>
-                        <option key={`tutto-${cat}`} value={cat}>Tutto in {cat}</option>
+                      <optgroup key={`mobile-${cat}`} label={cat}>
+                        <option key={`mobile-tutto-${cat}`} value={cat}>Tutto in {cat}</option>
                         {(SUB_CATEGORIES[cat] || []).map(sub => (
-                          <option key={`sub-${sub}`} value={sub}>{sub}</option>
+                          <option key={`mobile-sub-${cat}-${sub}`} value={sub}>{sub}</option>
                         ))}
                       </optgroup>
                     ))}
@@ -980,6 +1046,25 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                <div>
+                  <label htmlFor="mobile-filter-year" className="block text-sm font-bold text-slate-700 mb-2">Anno Pubblicazione</label>
+                  <div className="relative">
+                    <input
+                      id="mobile-filter-year"
+                      type="text"
+                      placeholder="Es. 2023"
+                      value={filterYear}
+                      onChange={(e) => setFilterYear(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 text-base focus:ring-amber-500 focus:border-amber-500 pr-10"
+                    />
+                    {filterYear && (
+                      <button onClick={() => setFilterYear('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <button 
@@ -989,7 +1074,6 @@ export default function App() {
                 Applica
               </button>
             </motion.div>
-          </>
         )}
       </AnimatePresence>
 

@@ -36,20 +36,23 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm sm:hidden"
-            onClick={onClose}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="fixed top-16 right-4 left-4 sm:absolute sm:top-12 sm:bottom-auto sm:left-auto sm:right-0 mt-2 sm:w-80 md:w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[80vh]"
-          >
+        <motion.div
+          key="notifications-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm sm:hidden"
+          onClick={onClose}
+        />
+      )}
+      {isOpen && (
+        <motion.div
+          key="notifications-modal"
+          initial={{ opacity: 0, scale: 0.95, y: -10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -10 }}
+          className="fixed top-16 right-4 left-4 sm:absolute sm:top-12 sm:bottom-auto sm:left-auto sm:right-0 mt-2 sm:w-80 md:w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[80vh]"
+        >
             <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-slate-800 font-serif">Notifiche ({unreadCount})</h3>
@@ -111,7 +114,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
               )}
             </div>
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );

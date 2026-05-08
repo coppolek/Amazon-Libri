@@ -14,6 +14,7 @@ interface BookCardProps {
   onQuickView?: (e: React.MouseEvent) => void;
   isFavorite: boolean;
   onToggleFavorite: (e: React.MouseEvent) => void;
+  isFollowedAuthor?: boolean;
 }
 
 export const BookCard: React.FC<BookCardProps> = ({ 
@@ -22,7 +23,8 @@ export const BookCard: React.FC<BookCardProps> = ({
   onClick,
   onQuickView,
   isFavorite,
-  onToggleFavorite 
+  onToggleFavorite,
+  isFollowedAuthor 
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -54,7 +56,7 @@ export const BookCard: React.FC<BookCardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      className="group flex flex-row sm:flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
+      className={`group flex flex-row sm:flex-col bg-white rounded-xl shadow-sm border ${isFollowedAuthor ? 'border-amber-300 shadow-amber-100' : 'border-slate-200'} overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full`}
       onClick={onClick}
     >
       <div className="relative block w-32 sm:w-full flex-shrink-0 aspect-[2/3] bg-slate-100 overflow-hidden">
@@ -144,7 +146,12 @@ export const BookCard: React.FC<BookCardProps> = ({
         <div className="block text-lg font-serif font-bold text-slate-900 leading-tight mb-1 group-hover:text-amber-600 transition-colors">
           {book.title}
         </div>
-        <p className="text-sm text-slate-600 font-medium mb-1">{book.author}</p>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <p className="text-sm text-slate-600 font-medium">{book.author}</p>
+          {isFollowedAuthor && (
+            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider" title="Autore seguito">Seguito</span>
+          )}
+        </div>
         
         {book.publisher && (
           <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide">

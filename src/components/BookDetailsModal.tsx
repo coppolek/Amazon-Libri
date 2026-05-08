@@ -38,6 +38,8 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
   const [submitting, setSubmitting] = useState(false);
   const [modalConfig, setModalConfig] = useState<{isOpen: boolean; title: string; message: string; type: 'error' | 'success'}>({ isOpen: false, title: '', message: '', type: 'error' });
 
+  const [fullDescription, setFullDescription] = useState<string | null>(null);
+
   // Trova la recensione corrente dell'utente
   const myReview = user ? reviews.find(r => r.userId === user.uid) : null;
   const isFollowingAuthor = profile?.followedAuthors?.includes(book.author);
@@ -71,6 +73,54 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
     }
   }, [myReview]);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchFullDescription = async () => {
+      // Evita di cercare se è un ID fallback
+      if (book.id.startsWith('fb-')) return;
+      try {
+        const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${book.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.volumeInfo?.description) {
+            setFullDescription(data.volumeInfo.description);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch full description:", err);
+      }
+    };
+    fetchFullDescription();
+    return () => { isMounted = false; };
+  }, [book.id]);
+
+  React.useEffect(() => {
+    const originalTitle = document.title;
+    const metaDescription = document.querySelector('meta[name="description"]');
+    const originalMeta = metaDescription ? metaDescription.getAttribute('content') : '';
+
+    const newTitle = `${book.title} di ${book.author} - Recensioni e Trama | LibriScelti`;
+    const displayDesc = fullDescription || book.description;
+    let plainDescription = displayDesc.replace(/<[^>]+>/g, ' ').substring(0, 155);
+
+    document.title = newTitle;
+    if (metaDescription) {
+      metaDescription.setAttribute('content', plainDescription);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = plainDescription;
+      document.head.appendChild(meta);
+    }
+
+    return () => {
+      document.title = originalTitle;
+      if (metaDescription && originalMeta !== null) {
+        metaDescription.setAttribute('content', originalMeta);
+      }
+    };
+  }, [book, fullDescription]);
+
   const handleAmazonClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     setClickedAmazon(true);
@@ -102,22 +152,53 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
     }
   };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    "name": book.title,
+    "author": {
+      "@type": "Person",
+      "name": book.author
+    },
+    "image": coverUrl,
+    "description": (fullDescription || book.description).replace(/<[^>]+>/g, ' '),
+    "isbn": book.isbn,
+    "publisher": book.publisher ? {
+      "@type": "Organization",
+      "name": book.publisher
+    } : undefined,
+    "datePublished": book.publishedDate,
+    "numberOfPages": book.pageCount,
+    "aggregateRating": book.averageRating ? {
+      "@type": "AggregateRating",
+      "ratingValue": book.averageRating,
+      "reviewCount": book.ratingsCount || 1,
+    } : undefined
+  };
+
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      >
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-        
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <AnimatePresence>
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden z-10"
+          key="book-details-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
         >
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+          
+          <motion.div
+            key="book-details-modal"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden z-10"
+          >
            <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors z-20"
@@ -282,12 +363,13 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
             </div>
 
             <div className="mb-8">
-              <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                Descrizione del libro
+              <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">Descrizione del libro</span>
               </h3>
+              
               <div 
-                className="text-slate-700 leading-relaxed space-y-4 text-[15px] mb-6" 
-                dangerouslySetInnerHTML={{ __html: book.description }} 
+                className="text-slate-700 leading-relaxed space-y-4 text-[15px] mb-6 prose prose-slate" 
+                dangerouslySetInnerHTML={{ __html: fullDescription || book.description }} 
               />
               <AdBanner />
             </div>
@@ -386,6 +468,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
         message={modalConfig.message}
         type={modalConfig.type}
       />
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   );
 }

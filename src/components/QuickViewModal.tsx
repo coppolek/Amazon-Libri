@@ -25,9 +25,13 @@ export function QuickViewModal({ book, onClose }: QuickViewModalProps) {
   return (
     <AnimatePresence>
       {book && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <motion.div 
+          key="quickview-wrapper"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        >
           {/* Backdrop */}
           <motion.div
+            key="quickview-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -37,6 +41,7 @@ export function QuickViewModal({ book, onClose }: QuickViewModalProps) {
 
           {/* Modal content */}
           <motion.div
+            key="quickview-modal"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -89,7 +94,7 @@ export function QuickViewModal({ book, onClose }: QuickViewModalProps) {
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

@@ -22,8 +22,12 @@ export function MessageModal({ isOpen, onClose, title, message, type }: MessageM
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <motion.div 
+          key="message-wrapper"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        >
           <motion.div
+            key="message-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -32,6 +36,7 @@ export function MessageModal({ isOpen, onClose, title, message, type }: MessageM
           />
 
           <motion.div
+            key="message-content"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -58,7 +63,7 @@ export function MessageModal({ isOpen, onClose, title, message, type }: MessageM
               <X className="w-5 h-5" />
             </button>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

@@ -1,4 +1,5 @@
 import express from "express";
+import "dotenv/config";
 import { createServer as createViteServer } from "vite";
 import * as cheerio from "cheerio";
 import path from "path";
@@ -70,6 +71,8 @@ async function startServer() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  app.use(express.json());
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

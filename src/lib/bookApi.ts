@@ -112,3 +112,40 @@ export async function searchRealBooks(query: string, maxResults = 16, startIndex
   }
 }
 
+export async function getBookById(id: string): Promise<Book | null> {
+  try {
+    const url = `https://www.googleapis.com/books/v1/volumes/${id}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const item = await response.json();
+    
+    const volInfo = item.volumeInfo;
+    let isbn = item.id;
+    if (volInfo.industryIdentifiers) {
+        const trueIsbn = volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_13') || volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_10');
+        if (trueIsbn) isbn = trueIsbn.identifier;
+    }
+
+    let coverUrl = volInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || null;
+    if (coverUrl) {
+      coverUrl = coverUrl.replace('&zoom=1', '&zoom=0');
+    }
+
+    return {
+      id: item.id || isbn,
+      isbn,
+      title: volInfo.title || "Titolo Sconosciuto",
+      author: volInfo.authors ? volInfo.authors.join(', ') : "Autore Sconosciuto",
+      coverUrl,
+      category: volInfo.categories ? volInfo.categories[0] : "Altro",
+      description: volInfo.description || "Nessuna descrizione disponibile.",
+      pageCount: volInfo.pageCount,
+      publishedDate: volInfo.publishedDate,
+      publisher: volInfo.publisher
+    };
+  } catch (e) {
+    console.error("Errore fetch bookById:", e);
+    return null;
+  }
+}
+

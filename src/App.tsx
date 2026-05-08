@@ -10,7 +10,7 @@ import { AdBanner } from './components/AdBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { UserProfileModal } from './components/UserProfileModal';
 import { Category, Book, Review } from './types';
-import { searchRealBooks } from './lib/bookApi';
+import { searchRealBooks, getBookById } from './lib/bookApi';
 import { useFavorites } from './hooks/useFavorites';
 import { useHistory } from './hooks/useHistory';
 import { useAuth } from './hooks/useAuth';
@@ -153,6 +153,23 @@ export default function App() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const scrollPositions = useRef<Record<number, number>>({});
   const modalScrollY = useRef(0);
+
+  // Check URL on load for direct book links
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const bookId = params.get('bookId');
+      if (bookId) {
+        getBookById(bookId).then(book => {
+          if (book) {
+            setSelectedBook(book);
+            // Optionally remove the query string so refreshing doesn't keep reloading it
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+        });
+      }
+    } catch(e) {}
+  }, []);
 
   // Lock body scroll and save position when modals open
   useEffect(() => {

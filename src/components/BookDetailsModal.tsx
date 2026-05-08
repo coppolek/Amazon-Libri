@@ -26,7 +26,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
     ? book.coverUrl.replace('&edge=curl', '')
     : `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`;
 
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}?q=${encodeURIComponent(book.title)}` : amazonUrl;
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}?bookId=${book.id}` : amazonUrl;
 
   const [clickedAmazon, setClickedAmazon] = useState(false);
 
@@ -197,58 +197,59 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden z-10"
+            className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex overflow-hidden z-10"
           >
            <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors z-20"
+            className="absolute top-4 right-4 p-2 bg-slate-100/90 backdrop-blur hover:bg-slate-200 text-slate-600 rounded-full transition-colors z-30"
           >
             <X className="w-5 h-5" />
           </button>
 
           <button
             onClick={onToggleFavorite}
-            className="absolute top-4 right-14 p-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-500 rounded-full transition-colors z-20"
+            className="absolute top-4 right-14 p-2 bg-slate-100/90 backdrop-blur hover:bg-red-50 text-slate-600 hover:text-red-500 rounded-full transition-colors z-30"
             title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
           >
             <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
           </button>
 
-          {/* Left: Image (hidden on very small screens, or at top) */}
-          <div className="w-full md:w-2/5 md:bg-slate-50 p-6 flex flex-col items-center justify-center relative border-r border-slate-100 shrink-0">
-            <img 
-              src={coverUrl} 
-              alt={book.title} 
-              className="w-48 md:w-full max-w-xs h-auto object-contain rounded shadow-lg mb-6"
-            />
-            
-            <a
-              href={amazonUrl}
-              onClick={handleAmazonClick}
-              className={`w-full flex justify-center items-center gap-2 ${clickedAmazon ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-500 hover:bg-amber-600'} text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-amber-500 focus:ring-offset-2`}
-            >
-              {clickedAmazon ? (
-                <>
-                  <svg className="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Apertura in corso...
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-5 h-5" />
-                  Compra su Amazon
-                </>
-              )}
-            </a>
-            <p className="text-xs text-slate-400 mt-3 text-center mb-4">
-              Acquistando tramite questo link supporti il nostro progetto.
-            </p>
-            <ShareButtons title={book.title} url={shareUrl} />
-          </div>
+          <div className="flex flex-col md:flex-row w-full h-full overflow-y-auto md:overflow-hidden">
+            {/* Left: Image (hidden on very small screens, or at top) */}
+            <div className="w-full md:w-2/5 max-md:pt-16 md:bg-slate-50 p-6 flex flex-col items-center justify-center relative border-b md:border-b-0 md:border-r border-slate-100 shrink-0">
+              <img 
+                src={coverUrl} 
+                alt={book.title} 
+                className="w-40 md:w-full max-w-xs h-auto object-contain rounded shadow-lg mb-6"
+              />
+              
+              <a
+                href={amazonUrl}
+                onClick={handleAmazonClick}
+                className={`w-full max-w-xs flex justify-center items-center gap-2 ${clickedAmazon ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-500 hover:bg-amber-600'} text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-amber-500 focus:ring-offset-2`}
+              >
+                {clickedAmazon ? (
+                  <>
+                    <svg className="w-5 h-5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Apertura in corso...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-5 h-5" />
+                    Compra su Amazon
+                  </>
+                )}
+              </a>
+              <p className="text-xs text-slate-400 mt-3 text-center mb-4">
+                Acquistando tramite questo link supporti il nostro progetto.
+              </p>
+              <ShareButtons title={book.title} url={shareUrl} />
+            </div>
 
-          {/* Right: Details */}
-          <div className="w-full md:w-3/5 p-6 md:p-8 overflow-y-auto">
+            {/* Right: Details */}
+            <div className="w-full md:w-3/5 p-6 md:p-8 md:overflow-y-auto">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full uppercase tracking-wider">
@@ -458,6 +459,7 @@ export function BookDetailsModal({ book, onClose, isFavorite, onToggleFavorite, 
               )}
             </div>
             
+          </div>
           </div>
         </motion.div>
       </motion.div>

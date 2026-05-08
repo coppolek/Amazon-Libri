@@ -10,69 +10,60 @@ async function startServer() {
 
   app.use(cors());
 
-  // API handling Amazon Scrape
+  // API handling Google Books Api primarily
   app.get("/api/search", async (req, res) => {
     try {
       const q = req.query.q as string || "libri";
       const page = parseInt(req.query.page as string) || 1;
+      const maxResults = 16;
+      const startIndex = (page - 1) * maxResults;
       
-      const amazonUrl = `https://www.amazon.it/s?k=${encodeURIComponent(q)}&i=stripbooks&page=${page}`;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${maxResults}&startIndex=${startIndex}&langRestrict=it`;
       
-      const response = await fetch(amazonUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-          'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-        }
-      });
+      const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`Amazon API returned ${response.status}`);
+        throw new Error(`Google Books API returned ${response.status}`);
       }
 
-      const html = await response.text();
-      const $ = cheerio.load(html);
+      const data: any = await response.json();
       const results: any[] = [];
-      const seenAsins = new Set<string>();
+      const seenIsbns = new Set<string>();
       
-      $('.s-result-item[data-asin]').each((i, el) => {
-        const asin = $(el).attr('data-asin');
-        if (!asin || seenAsins.has(asin)) return;
-        seenAsins.add(asin);
-        
-        const title = $(el).find('h2 span').text().trim();
-        // try to find author
-        const authorLinks = $(el).find('.a-row.a-size-base.a-color-secondary a.a-size-base');
-        let author = authorLinks.first().text().trim();
-        if (!author) {
-           const authorText = $(el).find('.a-row.a-size-base.a-color-secondary').text();
-           const match = authorText.match(/di\s+(.+?)(?:$|\|)/);
-           if (match) author = match[1].trim();
-        }
-        
-        let coverUrl = $(el).find('img.s-image').attr('src');
-        if (coverUrl) {
-          // Aumentiamo la risoluzione dell'immagine convertendo _AC_UY218_ in _AC_UY800_
-          coverUrl = coverUrl.replace(/\._AC_.*_\.jpg/, '._AC_UY800_.jpg');
-        }
-        
-        if (title) {
-          results.push({ 
-            id: asin,
-            isbn: asin, // using asin as isbn fallback
-            title, 
-            author: author || "Autore Sconosciuto", 
+      if (data.items) {
+        for (const item of data.items) {
+          const volInfo = item.volumeInfo;
+          let isbn = item.id;
+          if (volInfo.industryIdentifiers) {
+             const trueIsbn = volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_13') || volInfo.industryIdentifiers.find((id: any) => id.type === 'ISBN_10');
+             if (trueIsbn) isbn = trueIsbn.identifier;
+          }
+
+          if (seenIsbns.has(isbn)) continue;
+          seenIsbns.add(isbn);
+
+          // Get higher zoom image if possible
+          let coverUrl = volInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || null;
+          if (coverUrl) {
+            coverUrl = coverUrl.replace('&zoom=1', '&zoom=0');
+          }
+
+          results.push({
+            id: item.id || isbn,
+            isbn,
+            title: volInfo.title || "Titolo Sconosciuto",
+            author: volInfo.authors ? volInfo.authors.join(', ') : "Autore Sconosciuto",
             coverUrl,
-            category: "Risultato Amazon",
-            description: "Risultato dalla ricerca di Amazon.it"
+            category: volInfo.categories ? volInfo.categories[0] : "Altro",
+            description: volInfo.description || "Nessuna descrizione disponibile.",
+            pageCount: volInfo.pageCount,
+            publishedDate: volInfo.publishedDate,
+            publisher: volInfo.publisher
           });
         }
-      });
-
-      // Usually Amazon gives max 16 per page for books. Total is hard to guess, we'll estimate:
-      const totalItems = results.length > 0 ? 400 : 0; 
+      }
       
-      res.json({ items: results, totalItems });
+      res.json({ items: results, totalItems: data.totalItems || 0 });
       
     } catch(err: any) {
       console.error(err);
